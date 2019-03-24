@@ -1,4 +1,7 @@
 const fs = require('fs');
+const UserModel = require('../models/user');
+const bcrypt = require('bcryptjs');
+const saltRounds = 10;
 
 module.exports = {
     addUserPage: (req, res) => {
@@ -7,56 +10,57 @@ module.exports = {
             message: ''
         });
     },
-    addUser: (req, res) => {
+    addUser: async (req, res) => {
 
-        let message = '';
-        let first_name = req.body.first_name;
-        let last_name = req.body.last_name;
-        let password = req.body.password;
-        let number = req.body.number;
-        let username = req.body.username;
+        try {
 
-        let usernameQuery = "SELECT * FROM `users` WHERE user_name = '" + username + "'";
-                    console.log("******* add user *********",req.body);
+            let message = '';
+            let firstname = req.body.first_name;
+            let lastname = req.body.last_name;
+            let password = req.body.password;
+            let number = req.body.number;
+            let username = req.body.username;
 
-        db.query(usernameQuery, (err, result) => {
+            let userExist = await UserModel.forge().query({ where: { user_name: username } }).fetch();
 
-            if (err) {
-                return res.status(500).send(err);
-            }
-
-            if (result.length > 0) {
+            if (userExist) {
                 message = 'Username already exists';
 
-                res.render('add-user.ejs', {
+                return res.render('add-user.ejs', {
                     message,
                     title: "Welcome to Demo | Add a new user"
                 });
-
-            } else {
-
-                let query = "INSERT INTO `users` (first_name, last_name, password, phone_number, user_name) VALUES ('" +
-                    first_name + "', '" + last_name + "', '" + password + "', '" + number + "', '" + username + "')";
-
-                    console.log("******* add user *********",query);
-                db.query(query, (err, result) => {
-                    if (err) {
-                        return res.status(500).send(err);
-                    }
-                    res.redirect('/');
-                });
             }
-        });
-    },
-    deleteUser: (req, res) => {
-        let userId = req.params.id;
-        let deleteUserQuery = 'DELETE FROM users WHERE id = "' + userId + '"';
 
-        db.query(deleteUserQuery, (err, result) => {
-            if (err) {
-                return res.status(500).send(err);
+            const salt = await bcrypt.genSalt(saltRounds);
+            const hash = await bcrypt.hash(password, salt);
+
+            await new UserModel({
+                first_name: firstname,
+                last_name: lastname,
+                password: hash,
+                phone_number: number,
+                user_name: username,
+                created_at: new Date()
+            }).save();
+
+            res.redirect('/');
+
+        } catch (err) {
+            return res.status(500).send(err.message);
+        }
+    },
+    deleteUser: async (req, res) => {
+
+        try {
+            let userId = req.params.id;
+            let userExist = await UserModel.forge().query({ where: { id: userId } }).fetch();
+            if (userExist) {
+                userExist.destroy();
             }
             res.redirect('/');
-        });
+        } catch (err) {
+            return res.status(500).send(err.message);
+        }
     }
 };

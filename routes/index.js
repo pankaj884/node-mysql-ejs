@@ -1,14 +1,16 @@
+const UserModel = require('../models/user');
+
 module.exports = {
-    getHomePage: (req, res) => {
-        let query = "SELECT * FROM `users` ORDER BY id ASC";
-        db.query(query, (err, result) => {
-            if (err) {
-                res.redirect('/');
-            }
+    getHomePage: async (req, res) => {
+        try {
+            let u = await UserModel.forge().fetchAll();
+            let result = u.toJSON();
             res.render('index.ejs', {
-                title: "Welcome to Demo | View Users"
-                ,users: result
+                title: "Welcome to Demo | View Users",
+                users: result
             });
-        });
+        } catch (err) {
+            res.redirect('/');
+        }
     },
 };
